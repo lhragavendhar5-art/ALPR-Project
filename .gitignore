@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+
+# Large files
+*.pt
+*.exe
+
+# Dataset (VERY IMPORTANT)
+chars_dataset/
+dataset_indian/
+
+# Training outputs
+runs/
+uploads/
+
+# VS Code
+.vscode/
+
+# Env
+.env

@@ -1,0 +1,6 @@
+path: C:/Users/Ragav/ALPR_v26/phase5_application/dataset_indian
+train: train/images
+val: valid/images
+test: test/images
+nc: 1
+names: ['license_plate']

@@ -1,0 +1,6 @@
+{
+    "python.languageServer": "Pylance",
+    "python.analysis.typeCheckingMode": "off",
+    "pyre.enable": false,
+    "python.defaultInterpreterPath": "python"
+}
