@@ -799,6 +799,42 @@ select option { background: var(--sur1); }
 }
 #toast.show { opacity: 1; transform: translateY(0); }
 
+/* ── MANUAL OVERRIDE PANEL ──────────────────────────────────── */
+.manual-panel {
+  background: linear-gradient(135deg, rgba(255,184,0,.04), rgba(255,45,85,.04));
+  border: 1px solid rgba(255,184,0,.25);
+  border-radius: var(--r2);
+  padding: 16px;
+  margin-top: 12px;
+  display: none;
+}
+.manual-panel.show { display: block; }
+.manual-panel-hd {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--rajd); font-size: 11px; font-weight: 700;
+  letter-spacing: 2px; color: var(--amber); text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.manual-panel-hd::before {
+  content: ''; width: 2px; height: 12px;
+  background: var(--amber); border-radius: 1px;
+  box-shadow: 0 0 6px var(--amber);
+}
+.fuzzy-results {
+  margin-top: 8px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.fuzzy-item {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--sur1); border: 1px solid var(--bdr);
+  border-radius: var(--r); padding: 8px 12px; cursor: pointer;
+  transition: all .15s;
+}
+.fuzzy-item:hover { border-color: var(--amber); background: rgba(255,184,0,.06); }
+.fuzzy-plate { font-family: var(--rajd); font-size: 14px; font-weight: 700; letter-spacing: 3px; color: var(--cyan); }
+.fuzzy-owner { font-family: var(--mono); font-size: 9px; color: var(--txt2); }
+.fuzzy-flat  { font-family: var(--mono); font-size: 9px; color: var(--amber); }
+
 /* ── SKELETON ──────────────────────────────────────── */
 .skel {
   background: linear-gradient(90deg, var(--sur1) 25%, var(--sur2) 50%, var(--sur1) 75%);
@@ -1195,6 +1231,24 @@ select option { background: var(--sur1); }
 
         <!-- Annotated image -->
         <img class="ann-img" id="annImg" src="" alt="">
+
+        <!-- Manual Override Panel (shows when OCR fails) -->
+        <div class="manual-panel" id="manualPanel">
+          <div class="manual-panel-hd">⚡ Manual Override — Scan Failed?</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--txt2);margin-bottom:12px;line-height:1.8;">Camera/image couldn't read the plate. Type it manually or search below.</div>
+          <div style="display:flex;gap:8px;align-items:flex-end;">
+            <div class="fg" style="flex:1;">
+              <label>Enter Plate Number</label>
+              <input id="manualPlate" class="plate-input" placeholder="TN09AB1234" maxlength="12" oninput="onManualInput(this.value)">
+            </div>
+            <div class="fg" style="width:110px;">
+              <label>Event Type</label>
+              <select id="manualEvt"><option value="ENTRY">Entry</option><option value="EXIT">Exit</option></select>
+            </div>
+            <button class="btn btn-warn" onclick="submitManual()" style="flex-shrink:0;margin-bottom:1px;">⚡ Log It</button>
+          </div>
+          <div class="fuzzy-results" id="fuzzyResults"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1767,6 +1821,8 @@ function setScanning() {
     if (el) el.classList.add('hidden');
   });
   document.getElementById('confBadge').textContent = '';
+  document.getElementById('manualPanel').classList.remove('show');
+  document.getElementById('fuzzyResults').innerHTML = '';
 }
 
 function clearResult() {
@@ -1778,6 +1834,8 @@ function clearResult() {
     if (el) el.classList.add('hidden');
   });
   document.getElementById('confBadge').textContent = '';
+  document.getElementById('manualPanel').classList.remove('show');
+  document.getElementById('fuzzyResults').innerHTML = '';
 }
 
 function showResult(d) {
@@ -1913,7 +1971,10 @@ function showResult(d) {
     rb.innerHTML = `<div class="result-err-lbl">✕ ${d.error||'No plate detected'}</div>
       ${d.tip?`<div class="result-meta" style="margin-top:6px;">💡 ${d.tip}</div>`:''}
       <div class="result-meta" style="margin-top:8px;">Tips: Better lighting · Hold closer · Avoid reflections</div>`;
-    toast('No plate detected', 'warn');
+    toast('No plate detected — use Manual Override below', 'warn');
+    // Show the manual override panel
+    document.getElementById('manualPanel').classList.add('show');
+    document.getElementById('manualPlate').focus();
   }
 
   const ai = document.getElementById('annImg');
@@ -2178,6 +2239,62 @@ async function saveGate() {
     })
   });
   toast('Gate config saved', 'success');
+}
+
+// ══════════════════════════════════════════════
+//  MANUAL OVERRIDE + FUZZY SEARCH
+// ══════════════════════════════════════════════
+let _fuzzyTimer = null;
+
+function onManualInput(val) {
+  clearTimeout(_fuzzyTimer);
+  const clean = val.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (clean.length < 2) {
+    document.getElementById('fuzzyResults').innerHTML = '';
+    return;
+  }
+  _fuzzyTimer = setTimeout(() => fuzzySearch(clean), 280);
+}
+
+async function fuzzySearch(q) {
+  const d = await api('/api/fuzzy-search?q=' + encodeURIComponent(q));
+  const el = document.getElementById('fuzzyResults');
+  if (!d.matches?.length) {
+    el.innerHTML = `<div style="font-family:var(--mono);font-size:9px;color:var(--txt2);padding:6px 0;">No registered matches — you can still log it manually</div>`;
+    return;
+  }
+  el.innerHTML = d.matches.map(m => `
+    <div class="fuzzy-item" onclick="pickFuzzy('${m.plate}')">
+      <div>
+        <div class="fuzzy-plate">${m.plate}</div>
+        <div class="fuzzy-owner">${m.owner}</div>
+      </div>
+      <div class="fuzzy-flat">${m.flat ? 'Flat ' + m.flat : ''}</div>
+    </div>`).join('');
+}
+
+function pickFuzzy(plate) {
+  document.getElementById('manualPlate').value = plate;
+  document.getElementById('fuzzyResults').innerHTML = '';
+}
+
+async function submitManual() {
+  const raw = document.getElementById('manualPlate').value.trim().toUpperCase();
+  if (!raw) { toast('Enter a plate number', 'error'); return; }
+  const evt = document.getElementById('manualEvt').value;
+  const d = await api('/api/manual-entry', {
+    method: 'POST',
+    body: JSON.stringify({ plate: raw, event_type: evt, operator: 'Dashboard Operator' })
+  });
+  if (d.success) {
+    document.getElementById('manualPanel').classList.remove('show');
+    document.getElementById('manualPlate').value = '';
+    document.getElementById('fuzzyResults').innerHTML = '';
+    showResult(d);
+    toast('\u2705 Manual entry logged: ' + d.plate, 'success');
+  } else {
+    toast('\u2715 ' + (d.error || 'Failed'), 'error');
+  }
 }
 
 // ══════════════════════════════════════════════

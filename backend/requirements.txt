@@ -1,0 +1,27 @@
+# ALPR System — Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Core Framework
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# Computer Vision & Image Processing
+opencv-python>=4.8.0
+numpy>=1.24.0
+Pillow>=10.0.0
+
+# OCR Engine
+easyocr>=1.7.0
+
+# Machine Learning — Detection Models
+torch>=2.0.0
+torchvision>=0.15.0
+
+# YOLO (Ultralytics)
+ultralytics>=8.3.0
+
+# System utilities
+psutil>=5.9.0
+
+# Optional: WhatsApp notifications
+# twilio>=8.0.0

@@ -1,0 +1,30 @@
+/* ============================================================
+   ALPR Dashboard — Shared CSS Variables & Utilities
+   Extracted from dashboard.html for organization.
+   This file is for reference only — the live CSS is in dashboard.html
+   ============================================================ */
+
+/*
+  Design Tokens used across the dashboard:
+  --bg, --bg2         : Background colors
+  --sur0..sur3        : Surface layers (panels, cards)
+  --bdr, --bdr2, bdr3 : Border colors (subtle to strong cyan)
+  --cyan, --cyan2     : Primary accent (cyan)
+  --grn, --grn2       : Success / Entry green
+  --red, --red2       : Danger / Exit red
+  --amber             : Warning / Unknown
+  --purple            : Secondary accent
+  --txt0..txt2        : Text colors (bright to dim)
+  --rajd              : Rajdhani font (headings)
+  --mono              : Share Tech Mono (monospace data)
+  --exo               : Exo 2 (body)
+
+  Pages / Sections:
+  - Dashboard: stats overview + recent events + quick log
+  - Scan Plate: Image / Webcam / Video tabs + result panel
+  - Gate Control: open/close gate + config
+  - Vehicles: register form + vehicle table with inline edit
+  - Event Log: full event history
+  - Notifications: recent alerts
+  - Settings: email, telegram, whatsapp config
+*/

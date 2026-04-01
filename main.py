@@ -2097,6 +2097,75 @@ def model_comparison():
     })
 
 
+@app.route('/api/manual-entry', methods=['POST'])
+def manual_entry():
+    """
+    Park+-style manual override — operator types plate when OCR fails.
+    Looks up vehicle, opens gate, logs event just like an auto-scan would.
+    """
+    try:
+        data       = request.get_json(force=True, silent=True) or {}
+        raw_plate  = data.get('plate', '').strip().upper()
+        event_type = data.get('event_type', 'ENTRY')
+        operator   = data.get('operator', 'Manual Override')
+
+        if not raw_plate:
+            return jsonify({'success': False, 'error': 'plate required'}), 400
+
+        # Validate / fix plate
+        plate = validate_plate(raw_plate)
+        if not plate:
+            # Still allow if it looks reasonably like a plate
+            plate = re.sub(r'[^A-Z0-9]', '', raw_plate)
+            if len(plate) < 4:
+                return jsonify({'success': False, 'error': 'Invalid plate format'}), 400
+
+        event, vehicle, gate_result, notif_results = \
+            handle_detection(plate, 1.0, event_type)
+
+        print(f"  [MANUAL] plate={plate} op={operator} gate={gate_result}")
+        return jsonify({
+            'success':       True,
+            'plate':         plate,
+            'confidence':    100.0,
+            'vehicle':       vehicle,
+            'event':         event,
+            'gate':          gate_result,
+            'notifications': notif_results,
+            'source':        'manual_override',
+        })
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fuzzy-search', methods=['GET'])
+def fuzzy_search():
+    """
+    Search registered vehicles by partial plate number.
+    Returns up to 5 closest matches — lets operator pick the right one.
+    Used by the dashboard manual-override panel.
+    """
+    q = re.sub(r'[^A-Z0-9]', '', request.args.get('q', '').upper())
+    if len(q) < 2:
+        return jsonify({'matches': [], 'query': q})
+
+    q_norm = normalize_fuzzy(q)
+    results = []
+    for plate, v in db.vehicles.items():
+        # Exact prefix match
+        if plate.startswith(q) or normalize_fuzzy(plate).startswith(q_norm):
+            results.append({'plate': plate, 'owner': v['owner_name'],
+                            'flat': v.get('flat_number', ''), 'score': 2})
+        # Substring match
+        elif q in plate or q_norm in normalize_fuzzy(plate):
+            results.append({'plate': plate, 'owner': v['owner_name'],
+                            'flat': v.get('flat_number', ''), 'score': 1})
+
+    results.sort(key=lambda r: -r['score'])
+    return jsonify({'matches': results[:5], 'query': q})
+
+
 if __name__ == '__main__':
     print()
     print("=" * 62)
